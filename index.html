@@ -247,6 +247,11 @@
   .plan-sunday .ps-s { font-size: 12px; color: var(--muted); margin-top: 4px; font-family: 'JetBrains Mono', monospace; }
   .plan-gen-btn { width: 100%; margin-top: 1.25rem; padding: 13px; border-radius: 9px; border: 1px solid var(--ecg); background: transparent; color: var(--ecg); font-size: 14px; font-weight: 600; cursor: pointer; font-family: 'Space Grotesk', sans-serif; transition: all .15s; }
   .plan-gen-btn:hover { background: var(--ecg); color: var(--bg-soft); }
+  .plan-gen-row { display: flex; gap: 10px; margin-top: 1.25rem; }
+  .plan-gen-row .plan-gen-btn { margin-top: 0; }
+  .plan-xls-btn { background: var(--ecg); color: var(--bg-soft); }
+  .plan-xls-btn:hover { background: transparent; color: var(--ecg); }
+  @media (max-width: 560px) { .plan-gen-row { flex-direction: column; } }
   .plan-temario { margin-top: 1.25rem; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 1.25rem; display: none; }
   .plan-temario h3 { font-family: 'Newsreader', serif; font-size: 20px; font-weight: 500; margin-bottom: 1rem; }
   .pt-day { margin-bottom: 14px; }
@@ -303,9 +308,93 @@
   .plan-modal-acts { display: flex; gap: 8px; justify-content: flex-end; }
   .plan-modal-acts button { font-size: 13px; padding: 7px 15px; border-radius: 7px; border: 1px solid var(--line); background: transparent; cursor: pointer; font-family: 'Space Grotesk', sans-serif; }
   .plan-modal-acts .pm-ok { background: var(--ecg); color: var(--bg-soft); border-color: var(--ecg); }
+
+  /* ====== AUTH SCREEN ====== */
+  #authScreen { position: fixed; inset: 0; background: var(--bg); z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 20px; }
+  #authScreen.hidden { display: none; }
+  .auth-card { width: 100%; max-width: 380px; background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: clamp(28px,5vw,40px); }
+  .auth-brand { font-family: 'JetBrains Mono', monospace; font-size: 13px; color: var(--ecg); margin-bottom: 18px; text-align: center; letter-spacing: 0.04em; }
+  .auth-title { font-family: 'Newsreader', serif; font-size: 26px; font-weight: 500; text-align: center; margin-bottom: 8px; }
+  .auth-sub { font-size: 13px; color: var(--muted); text-align: center; margin-bottom: 26px; }
+  .auth-field { margin-bottom: 14px; }
+  .auth-field label { display: block; font-family: 'JetBrains Mono', monospace; font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted-2); margin-bottom: 6px; }
+  .auth-field input { width: 100%; font-size: 14px; padding: 11px 13px; border: 1px solid var(--line); border-radius: 9px; background: var(--bg-soft); color: var(--text); font-family: 'Space Grotesk', sans-serif; }
+  .auth-field input:focus { outline: 2px solid var(--ecg); outline-offset: -1px; border-color: var(--ecg); }
+  .auth-btn { width: 100%; padding: 12px; border-radius: 9px; border: none; background: var(--ecg); color: var(--bg-soft); font-size: 14px; font-weight: 600; cursor: pointer; font-family: 'Space Grotesk', sans-serif; margin-top: 6px; transition: opacity .15s; }
+  .auth-btn:hover { opacity: .88; }
+  .auth-btn:disabled { opacity: .5; cursor: default; }
+  .auth-switch { text-align: center; margin-top: 18px; font-size: 13px; color: var(--muted); }
+  .auth-switch button { background: none; border: none; color: var(--ecg); cursor: pointer; font-size: 13px; font-family: 'Space Grotesk', sans-serif; font-weight: 600; padding: 0; margin-left: 4px; }
+  .auth-err { font-size: 12.5px; color: var(--ecg); text-align: center; margin-top: 12px; min-height: 16px; }
+  .auth-skip { text-align: center; margin-top: 14px; }
+  .auth-skip button { background: none; border: none; color: var(--muted-2); font-size: 12px; text-decoration: underline; cursor: pointer; font-family: 'JetBrains Mono', monospace; }
+  .user-badge { position: fixed; bottom: 16px; right: 16px; z-index: 60; background: var(--panel); border: 1px solid var(--line); border-radius: 20px; padding: 7px 14px; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--muted); display: flex; align-items: center; gap: 8px; box-shadow: 0 4px 14px rgba(46,38,32,.08); }
+  .user-badge .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--ecg); }
+  .user-badge button { background: none; border: none; color: var(--muted-2); cursor: pointer; font-family: 'JetBrains Mono', monospace; font-size: 11px; text-decoration: underline; padding: 0; }
+  @media (max-width: 480px) { .user-badge { font-size: 10px; padding: 6px 11px; } }
 </style>
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+  import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+  import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyB5E--cAYxOJ-xffbB-QqDV_T4NA6GZ-TQ",
+    authDomain: "medicine-sfgr.firebaseapp.com",
+    projectId: "medicine-sfgr",
+    storageBucket: "medicine-sfgr.firebasestorage.app",
+    messagingSenderId: "319358605562",
+    appId: "1:319358605562:web:1809f54e767c7584319143"
+  };
+  const fbApp = initializeApp(firebaseConfig);
+  const fbAuth = getAuth(fbApp);
+  const fbDb = getFirestore(fbApp);
+
+  // Expose a minimal bridge for the non-module script below
+  window.__fb = {
+    auth: fbAuth, db: fbDb,
+    createUser: (email, pass) => createUserWithEmailAndPassword(fbAuth, email, pass),
+    signIn: (email, pass) => signInWithEmailAndPassword(fbAuth, email, pass),
+    signOut: () => signOut(fbAuth),
+    onAuthChange: (cb) => onAuthStateChanged(fbAuth, cb),
+    getDoc: (uid) => getDoc(doc(fbDb, 'usuarios', uid)),
+    setDoc: (uid, data) => setDoc(doc(fbDb, 'usuarios', uid), data, { merge: true }),
+  };
+  window.dispatchEvent(new Event('fb-ready'));
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
 <body>
+
+<div id="authScreen">
+  <div class="auth-card">
+    <div class="auth-brand">◊ PROTOCOLO / residentado</div>
+    <div class="auth-title" id="authTitle">Inicia sesión</div>
+    <div class="auth-sub" id="authSub">Tu progreso se sincroniza en la nube entre tus dispositivos.</div>
+    <div class="auth-field">
+      <label>Correo</label>
+      <input type="email" id="authEmail" autocomplete="email" placeholder="tu@correo.com" />
+    </div>
+    <div class="auth-field">
+      <label>Contraseña</label>
+      <input type="password" id="authPass" autocomplete="current-password" placeholder="••••••••" />
+    </div>
+    <button class="auth-btn" id="authSubmit">Entrar</button>
+    <div class="auth-err" id="authErr"></div>
+    <div class="auth-switch">
+      <span id="authSwitchText">¿No tienes cuenta?</span>
+      <button id="authSwitchBtn">Crear una</button>
+    </div>
+    <div class="auth-skip"><button id="authSkip">Continuar sin guardar en la nube</button></div>
+  </div>
+</div>
+
+<div class="user-badge hidden" id="userBadge">
+  <span class="dot"></span>
+  <span id="userBadgeEmail">—</span>
+  <button id="userBadgeOut">salir</button>
+</div>
+
 
 <nav>
   <div class="wrap inner">
@@ -417,7 +506,10 @@
 
     <div class="plan-tabs" id="planTabs"></div>
     <div class="plan-grid" id="planGrid"></div>
-    <button class="plan-gen-btn" id="planGenBtn">↓ Generar temario de la semana</button>
+    <div class="plan-gen-row">
+      <button class="plan-gen-btn" id="planGenBtn">↓ Generar temario de la semana</button>
+      <button class="plan-gen-btn plan-xls-btn" id="planXlsBtn">⬇ Descargar Excel</button>
+    </div>
     <div class="plan-temario" id="planTemario"></div>
 
     <div class="plan-sep"></div>
@@ -671,8 +763,9 @@ async function load() {
   try { const raw = localStorage.getItem(KEY); if (raw) state = JSON.parse(raw); } catch(e){}
 }
 function save() {
+  try { localStorage.setItem(KEY, JSON.stringify(state)); } catch(e){}
   if (saveTimer) clearTimeout(saveTimer);
-  saveTimer = setTimeout(()=>{ try{ localStorage.setItem(KEY, JSON.stringify(state)); }catch(e){ console.error(e); } }, 150);
+  saveTimer = setTimeout(()=>{ cloudSaveAll(); }, 600);
 }
 
 // ============ DATE UTILS ============
@@ -871,7 +964,12 @@ async function pLoad(){
     if(!pst.done_s[esp]) pst.done_s[esp]={};
   });
 }
-function pSave(){try{localStorage.setItem(PKEY,JSON.stringify(pst));}catch(e){}}
+let pSaveTimer=null;
+function pSave(){
+  try{localStorage.setItem(PKEY,JSON.stringify(pst));}catch(e){}
+  if(pSaveTimer) clearTimeout(pSaveTimer);
+  pSaveTimer=setTimeout(()=>{ cloudSaveAll(); }, 600);
+}
 function pGsel(k){return pst.sel[k]||'';}
 function pSset(k,v){pst.sel[k]=v;pSave();}
 function pTopics(esp){return pst.topics[esp]||[];}
@@ -938,6 +1036,36 @@ document.getElementById('planGenBtn').addEventListener('click',()=>{
   box.scrollIntoView({behavior:'smooth',block:'nearest'});
 });
 
+function buildWeekRows(){
+  const w=PWEEKS[pcw];
+  const rows=[];
+  w.days.forEach((d,di)=>{
+    if(d.sim){
+      rows.push({ 'Día': d.n, 'Bloque': 'Simulacro', 'Especialidad': 'Mixto — todas las especialidades', 'Tema': '—', 'Subtema del día': '20 preguntas, formato examen' });
+      return;
+    }
+    const blockLabels = { b1:'Bloque 1 · 6:00', b2:'Bloque 2 · 8:30', be:'Entenada · 15:30' };
+    ['b1','b2'].concat(d.ent?['be']:[]).forEach(bk=>{
+      const sk=`w${pcw}d${di}${bk}`;
+      const esp=pGsel(sk+'_e')||(d[bk]?d[bk].e:d.ent);
+      const top=pGsel(sk+'_t')||pTopics(esp)[0]||'—';
+      const sub=pGsel(sk+'_s')||pSubs(esp,top)[0]||'—';
+      rows.push({ 'Día': d.n, 'Bloque': blockLabels[bk], 'Especialidad': esp, 'Tema': top, 'Subtema del día': sub });
+    });
+  });
+  return rows;
+}
+
+document.getElementById('planXlsBtn').addEventListener('click', ()=>{
+  const rows = buildWeekRows();
+  const ws = XLSX.utils.json_to_sheet(rows);
+  ws['!cols'] = [{wch:11},{wch:18},{wch:22},{wch:34},{wch:38}];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, PWEEKS[pcw].label.replace(/\s+/g,'_'));
+  const fname = `Temario_${PWEEKS[pcw].label.replace(/\s+/g,'_')}.xlsx`;
+  XLSX.writeFile(wb, fname);
+});
+
 function pPct(esp){
   const tops=pTopics(esp); if(!tops.length) return 0;
   let done=0;
@@ -982,7 +1110,7 @@ function pmSave(){
 document.getElementById('pmInput').addEventListener('keydown',e=>{if(e.key==='Enter')pmSave();if(e.key==='Escape')pmClose();});
 document.getElementById('planModal').addEventListener('click',e=>{if(e.target===e.currentTarget)pmClose();});
 
-// ============ INIT ============
+// ============ INIT (local first, instant) ============
 async function init() {
   renderPrompts(); renderSchedule(); renderWeek();
   await load();
@@ -996,6 +1124,135 @@ async function init() {
 }
 window.addEventListener('resize', ()=>{ renderAll(); drawFootEcg(); if(heroAnim) cancelAnimationFrame(heroAnim); animateHero(); });
 init();
+
+// ============ FIREBASE AUTH + CLOUD SYNC ============
+let fbUser = null;
+let cloudReady = false;
+let pendingCloudSave = false;
+
+function rerenderEverything(){
+  todayChecks = (state.days[tk]&&state.days[tk].slice)?state.days[tk].slice():[];
+  renderChecklist(); renderAll();
+  pRenderTabs(); pRenderWeek(); pRenderCourses();
+}
+
+async function cloudPullAndMerge(uid){
+  try{
+    const snap = await window.__fb.getDoc(uid);
+    if (snap.exists()) {
+      const data = snap.data();
+      if (data.state) { state = data.state; localStorage.setItem(KEY, JSON.stringify(state)); }
+      if (data.pst) { pst = data.pst; localStorage.setItem(PKEY, JSON.stringify(pst)); }
+      rerenderEverything();
+    } else {
+      // no hay datos en la nube todavía: subimos lo que haya local
+      await cloudSaveAll(true);
+    }
+  } catch(e){ console.error('No se pudo leer la nube', e); }
+}
+
+async function cloudSaveAll(force){
+  if (!fbUser || (!cloudReady && !force)) return;
+  try{ await window.__fb.setDoc(fbUser.uid, { state, pst, updatedAt: Date.now() }); }
+  catch(e){ console.error('No se pudo guardar en la nube', e); }
+}
+
+function showAuthScreen(show){
+  document.getElementById('authScreen').classList.toggle('hidden', !show);
+}
+function showUserBadge(email){
+  const b = document.getElementById('userBadge');
+  if (email) { b.classList.remove('hidden'); document.getElementById('userBadgeEmail').textContent = email; }
+  else { b.classList.add('hidden'); }
+}
+
+let authMode = 'signin'; // 'signin' | 'signup'
+function setAuthMode(mode){
+  authMode = mode;
+  const title = document.getElementById('authTitle');
+  const sub = document.getElementById('authSub');
+  const submit = document.getElementById('authSubmit');
+  const switchText = document.getElementById('authSwitchText');
+  const switchBtn = document.getElementById('authSwitchBtn');
+  if (mode === 'signin') {
+    title.textContent = 'Inicia sesión';
+    sub.textContent = 'Tu progreso se sincroniza en la nube entre tus dispositivos.';
+    submit.textContent = 'Entrar';
+    switchText.textContent = '¿No tienes cuenta?';
+    switchBtn.textContent = 'Crear una';
+  } else {
+    title.textContent = 'Crea tu cuenta';
+    sub.textContent = 'Un correo y contraseña simples — solo para sincronizar tu progreso.';
+    submit.textContent = 'Crear cuenta';
+    switchText.textContent = '¿Ya tienes cuenta?';
+    switchBtn.textContent = 'Inicia sesión';
+  }
+  document.getElementById('authErr').textContent = '';
+}
+
+function wireAuthUI(){
+  document.getElementById('authSwitchBtn').addEventListener('click', ()=> setAuthMode(authMode==='signin'?'signup':'signin'));
+
+  async function submitAuth(){
+    const email = document.getElementById('authEmail').value.trim();
+    const pass = document.getElementById('authPass').value;
+    const errEl = document.getElementById('authErr');
+    errEl.textContent = '';
+    if (!email || !pass) { errEl.textContent = 'Completa correo y contraseña.'; return; }
+    const btn = document.getElementById('authSubmit');
+    btn.disabled = true;
+    try {
+      if (authMode === 'signin') await window.__fb.signIn(email, pass);
+      else await window.__fb.createUser(email, pass);
+    } catch(e) {
+      const map = {
+        'auth/invalid-credential': 'Correo o contraseña incorrectos.',
+        'auth/wrong-password': 'Contraseña incorrecta.',
+        'auth/user-not-found': 'No existe una cuenta con ese correo.',
+        'auth/email-already-in-use': 'Ya existe una cuenta con ese correo. Inicia sesión.',
+        'auth/weak-password': 'La contraseña debe tener al menos 6 caracteres.',
+        'auth/invalid-email': 'Correo inválido.',
+      };
+      errEl.textContent = map[e.code] || 'Ocurrió un error. Intenta de nuevo.';
+    } finally {
+      btn.disabled = false;
+    }
+  }
+  document.getElementById('authSubmit').addEventListener('click', submitAuth);
+  document.getElementById('authPass').addEventListener('keydown', e=>{ if(e.key==='Enter') submitAuth(); });
+  document.getElementById('authEmail').addEventListener('keydown', e=>{ if(e.key==='Enter') submitAuth(); });
+  document.getElementById('userBadgeOut').addEventListener('click', async ()=>{
+    try{ await window.__fb.signOut(); }catch(e){}
+  });
+}
+
+function startFirebaseLayer(){
+  if (!window.__fb) return;
+  wireAuthUI();
+  window.__fb.onAuthChange(async (user) => {
+    cloudReady = false;
+    if (user) {
+      fbUser = user;
+      showAuthScreen(false);
+      showUserBadge(user.email);
+      await cloudPullAndMerge(user.uid);
+      cloudReady = true;
+    } else {
+      fbUser = null;
+      showUserBadge(null);
+      // Solo mostramos la pantalla de login si el usuario no la ha saltado antes en esta sesión
+      if (!sessionStorage.getItem('auth_skipped')) showAuthScreen(true);
+    }
+  });
+  document.getElementById('authSkip').addEventListener('click', ()=>{
+    sessionStorage.setItem('auth_skipped','1');
+    showAuthScreen(false);
+  });
+  setAuthMode('signin');
+}
+
+if (window.__fb) startFirebaseLayer();
+else window.addEventListener('fb-ready', startFirebaseLayer, { once:true });
 </script>
 </body>
 </html>

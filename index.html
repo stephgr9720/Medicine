@@ -332,6 +332,9 @@
   .ag-peso input { width: 52px; font-family: 'JetBrains Mono', monospace; font-size: 12px; padding: 5px 7px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--text); text-align: right; }
   .ag-pesos-t { font-size: 10.5px; font-family: 'JetBrains Mono', monospace; text-transform: uppercase; letter-spacing: .08em; color: var(--muted-2); margin-top: 14px; }
   .ag-warn { font-size: 12px; color: var(--ecg); font-family: 'JetBrains Mono', monospace; margin-top: 8px; min-height: 15px; }
+  .ag-estado { font-size: 12.5px; color: var(--muted-2); margin-top: 10px; padding: 9px 12px; background: var(--bg-soft); border: 1px solid var(--line); border-radius: 8px; line-height: 1.5; }
+  .ag-estado b { color: var(--text); }
+  .ag-export { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 1.25rem; }
   @media (max-width: 560px) { .ag-row { flex-direction: column; align-items: stretch; } .ag-f input, .ag-f select { width: 100%; } }
 
   /* ====== AUTH SCREEN ====== */
@@ -542,10 +545,9 @@
       <div class="ag-pesos-t">Peso por especialidad (%) · editable</div>
       <div class="ag-pesos" id="agPesos"></div>
       <div class="ag-warn" id="agWarn"></div>
+      <div class="ag-estado" id="agEstado"></div>
       <div class="ag-btns">
-        <button class="ag-btn" id="agGen">Generar cronograma</button>
-        <button class="ag-btn alt" id="agIcs" disabled>📅 Descargar .ics</button>
-        <button class="ag-btn alt" id="agXls" disabled>⬇ Excel completo</button>
+        <button class="ag-btn" id="agGen" disabled>Generar cronograma</button>
       </div>
       <div class="ag-out" id="agOut"></div>
     </div>
@@ -561,6 +563,17 @@
     <div class="plan-sep"></div>
     <div class="plan-prog-title">Progreso por especialidad</div>
     <div class="plan-courses" id="planCourses"></div>
+
+    <div class="plan-sep"></div>
+    <div class="ag-export" id="agExport">
+      <div class="ag-title">📤 Exportar cronograma</div>
+      <div class="ag-sub">Se exporta lo que ves ahora en el planificador, incluyendo los cambios que hayas hecho a mano en los selects.</div>
+      <div class="ag-btns">
+        <button class="ag-btn alt" id="agIcs" disabled>📅 Descargar .ics</button>
+        <button class="ag-btn alt" id="agXls" disabled>⬇ Excel completo</button>
+      </div>
+      <div class="ag-estado" id="agExpEstado">Generá el cronograma arriba para habilitar la exportación.</div>
+    </div>
   </div>
 </section>
 
@@ -1016,7 +1029,7 @@ function pSave(){
   pSaveTimer=setTimeout(()=>{ cloudSaveAll(); }, 600);
 }
 function pGsel(k){return pst.sel[k]||'';}
-function pSset(k,v){pst.sel[k]=v;pSave();}
+function pSset(k,v){pst.sel[k]=v;pSave();if(typeof agCheckExport==='function')agCheckExport();}
 function pTopics(esp){return pst.topics[esp]||[];}
 function pSubs(esp,t){return(pst.subtopics[esp]&&pst.subtopics[esp][t])||[];}
 
@@ -1042,8 +1055,8 @@ function pBuildBlock(wi,di,bk,eDef,cat,label,time,full){
     </div>
   </div>`;
 }
-function pOnEsp(sk,cat,esp){pSset(sk+'_e',esp);const t=pTopics(esp)[0]||'';pSset(sk+'_t',t);pSset(sk+'_s',pSubs(esp,t)[0]||'');pSave();pRenderWeek();}
-function pOnTop(sk,t){pSset(sk+'_t',t);const esp=pGsel(sk+'_e');pSset(sk+'_s',pSubs(esp,t)[0]||'');pSave();pRenderWeek();}
+function pOnEsp(sk,cat,esp){pSset(sk+'_e',esp);const t=pTopics(esp)[0]||'';pSset(sk+'_t',t);pSset(sk+'_s',pSubs(esp,t)[0]||'');pSave();pRenderWeek();if(typeof agCheckExport==='function')agCheckExport();}
+function pOnTop(sk,t){pSset(sk+'_t',t);const esp=pGsel(sk+'_e');pSset(sk+'_s',pSubs(esp,t)[0]||'');pSave();pRenderWeek();if(typeof agCheckExport==='function')agCheckExport();}
 
 function pRenderTabs(){
   document.getElementById('planTabs').innerHTML=PWEEKS.map((w,i)=>`<button class="plan-tab${i===pcw?' active':''}" onclick="pSwitchW(${i})">${w.label}</button>`).join('');
@@ -1135,12 +1148,12 @@ function pRenderCourses(){
 }
 
 function pTogExp(esp,t){if(!pst.expand)pst.expand={};pst.expand[esp+'_'+t]=!pst.expand[esp+'_'+t];pSave();pRenderCourses();}
-function pTogTop(esp,t){if(!pst.done_t[esp])pst.done_t[esp]=[];const i=pst.done_t[esp].indexOf(t);if(i>=0)pst.done_t[esp].splice(i,1);else pst.done_t[esp].push(t);pSave();pRenderCourses();}
-function pTogSub(esp,t,s){if(!pst.done_s[esp])pst.done_s[esp]={};if(!pst.done_s[esp][t])pst.done_s[esp][t]=[];const i=pst.done_s[esp][t].indexOf(s);if(i>=0)pst.done_s[esp][t].splice(i,1);else pst.done_s[esp][t].push(s);pSave();pRenderCourses();}
-function pAddTop(esp){const id='pait_'+esp.replace(/\s+/g,'_');const v=document.getElementById(id).value.trim();if(!v)return;if(!pst.topics[esp])pst.topics[esp]=[];pst.topics[esp].push(v);if(!pst.subtopics[esp])pst.subtopics[esp]={};pst.subtopics[esp][v]=[];document.getElementById(id).value='';pSave();pRenderCourses();pRenderWeek();}
-function pDelTop(esp,idx){const t=pst.topics[esp][idx];pst.topics[esp].splice(idx,1);pst.done_t[esp]=(pst.done_t[esp]||[]).filter(x=>x!==t);if(pst.subtopics[esp])delete pst.subtopics[esp][t];pSave();pRenderCourses();pRenderWeek();}
-function pAddSub(esp,t,ti){const id='pais_'+esp.replace(/\s+/g,'_')+'_'+ti;const v=document.getElementById(id).value.trim();if(!v)return;if(!pst.subtopics[esp])pst.subtopics[esp]={};if(!pst.subtopics[esp][t])pst.subtopics[esp][t]=[];pst.subtopics[esp][t].push(v);document.getElementById(id).value='';pSave();pRenderCourses();}
-function pDelSub(esp,t,idx){const s=pst.subtopics[esp][t][idx];pst.subtopics[esp][t].splice(idx,1);if(pst.done_s[esp]&&pst.done_s[esp][t])pst.done_s[esp][t]=pst.done_s[esp][t].filter(x=>x!==s);pSave();pRenderCourses();}
+function pTogTop(esp,t){if(!pst.done_t[esp])pst.done_t[esp]=[];const i=pst.done_t[esp].indexOf(t);if(i>=0)pst.done_t[esp].splice(i,1);else pst.done_t[esp].push(t);pSave();pRenderCourses();if(typeof agCheckListo==='function')agCheckListo();}
+function pTogSub(esp,t,s){if(!pst.done_s[esp])pst.done_s[esp]={};if(!pst.done_s[esp][t])pst.done_s[esp][t]=[];const i=pst.done_s[esp][t].indexOf(s);if(i>=0)pst.done_s[esp][t].splice(i,1);else pst.done_s[esp][t].push(s);pSave();pRenderCourses();if(typeof agCheckListo==='function')agCheckListo();}
+function pAddTop(esp){const id='pait_'+esp.replace(/\s+/g,'_');const v=document.getElementById(id).value.trim();if(!v)return;if(!pst.topics[esp])pst.topics[esp]=[];pst.topics[esp].push(v);if(!pst.subtopics[esp])pst.subtopics[esp]={};pst.subtopics[esp][v]=[];document.getElementById(id).value='';pSave();pRenderCourses();pRenderWeek();if(typeof agCheckListo==='function')agCheckListo();}
+function pDelTop(esp,idx){const t=pst.topics[esp][idx];pst.topics[esp].splice(idx,1);pst.done_t[esp]=(pst.done_t[esp]||[]).filter(x=>x!==t);if(pst.subtopics[esp])delete pst.subtopics[esp][t];pSave();pRenderCourses();pRenderWeek();if(typeof agCheckListo==='function')agCheckListo();}
+function pAddSub(esp,t,ti){const id='pais_'+esp.replace(/\s+/g,'_')+'_'+ti;const v=document.getElementById(id).value.trim();if(!v)return;if(!pst.subtopics[esp])pst.subtopics[esp]={};if(!pst.subtopics[esp][t])pst.subtopics[esp][t]=[];pst.subtopics[esp][t].push(v);document.getElementById(id).value='';pSave();pRenderCourses();if(typeof agCheckListo==='function')agCheckListo();}
+function pDelSub(esp,t,idx){const s=pst.subtopics[esp][t][idx];pst.subtopics[esp][t].splice(idx,1);if(pst.done_s[esp]&&pst.done_s[esp][t])pst.done_s[esp][t]=pst.done_s[esp][t].filter(x=>x!==s);pSave();pRenderCourses();if(typeof agCheckListo==='function')agCheckListo();}
 
 let pmCtx={};
 function pmOpen(type,esp,t,idx,cur){pmCtx={type,esp,t,idx};document.getElementById('pmTitle').textContent=type==='et'?'Editar tema':'Editar subtema';document.getElementById('pmInput').value=cur;document.getElementById('planModal').classList.add('open');setTimeout(()=>document.getElementById('pmInput').focus(),50);}
@@ -1196,6 +1209,49 @@ function agCheckSuma(){
   const w = document.getElementById('agWarn');
   if (Math.abs(suma-100) < 0.5) { w.textContent = `suma: ${suma.toFixed(1)}% ✓`; w.style.color='var(--muted-2)'; }
   else { w.textContent = `suma: ${suma.toFixed(1)}% — se normalizará automáticamente`; w.style.color='var(--amber)'; }
+}
+
+// Cuenta cuántos subtemas quedan por estudiar (los NO marcados como hechos).
+// El generador reparte esos pendientes, así que si no queda ninguno no hay
+// nada que planificar.
+function agContarPendientes(){
+  let pend = 0, total = 0;
+  [...PESP.madre,...PESP.hija].forEach(esp=>{
+    pTopics(esp).forEach(t=>{
+      const subs = pSubs(esp,t);
+      const ds = (pst.done_s[esp] && pst.done_s[esp][t]) || [];
+      const hechoTop = (pst.done_t[esp]||[]).includes(t);
+      total += subs.length || 1;
+      if (subs.length) pend += subs.filter(s=>!ds.includes(s)).length;
+      else if (!hechoTop) pend += 1;
+    });
+  });
+  return { pend, total };
+}
+
+// Habilita o bloquea el botón según haya subtemas disponibles para repartir.
+function agCheckListo(){
+  const btn = document.getElementById('agGen');
+  const est = document.getElementById('agEstado');
+  if(!btn || !est) return;
+  const { pend, total } = agContarPendientes();
+  const hayFechas = document.getElementById('agInicio').value && document.getElementById('agExamen').value;
+
+  if (pend === 0) {
+    btn.disabled = true;
+    est.innerHTML = total === 0
+      ? '⚠ No hay subtemas cargados. Agregá temas y subtemas en <b>Progreso por especialidad</b> (abajo) antes de generar.'
+      : '✓ Marcaste todos los subtemas como estudiados. Desmarcá los que quieras repasar para generar un cronograma nuevo.';
+    est.style.color = 'var(--amber)';
+  } else if (!hayFechas) {
+    btn.disabled = true;
+    est.innerHTML = `Completá la fecha de inicio y de examen. <b>${pend}</b> ${pend===1?'subtema listo':'subtemas listos'} para repartir.`;
+    est.style.color = 'var(--muted-2)';
+  } else {
+    btn.disabled = false;
+    est.innerHTML = `<b>${pend}</b> ${pend===1?'subtema pendiente':'subtemas pendientes'} de ${total} · listo para generar`;
+    est.style.color = 'var(--muted-2)';
+  }
 }
 
 // Reparto proporcional con método de restos mayores
@@ -1349,8 +1405,7 @@ function agGenerar(){
 
   agPlan = { eventos, semanas };
   pcw = 0; pRenderTabs(); pRenderWeek();
-  document.getElementById('agIcs').disabled = false;
-  document.getElementById('agXls').disabled = false;
+  agCheckExport();
 
   const totalM = Object.entries(cuposM).filter(([,n])=>n>0).sort((a,b)=>b[1]-a[1]);
   const dd = Math.ceil((exa-ini)/86400000);
@@ -1404,35 +1459,89 @@ function agToICS(evs){
   return L.join('\r\n');
 }
 
+// Reconstruye la lista de eventos leyendo los selects ACTUALES del planificador.
+// agPlan.eventos queda congelado al generar; si después editás una especialidad
+// o un subtema a mano, esos cambios viven en pst.sel y solo se ven acá.
+function agEventosActuales(){
+  const evs = [];
+  let nSim = 0;
+  PWEEKS.forEach((w,wi)=>{
+    w.days.forEach((d,di)=>{
+      if(!d._f) return; // semana no generada por el autogenerador
+      if(d.sim){
+        nSim++;
+        evs.push({ titulo:`Simulacro semanal #${nSim}`,
+          desc:'Simulacro mixto de 20 preguntas, formato examen. Al terminar: cada error va al Banco de Preguntas y se convierte en flashcard esa misma tarde.',
+          f:d._f, ini:AG_HORARIOS.sim.ini, fin:AG_HORARIOS.sim.fin, cat:'sim' });
+        return;
+      }
+      ['b1','b2'].concat(d.ent?['be']:[]).forEach(bk=>{
+        const sk = `w${wi}d${di}${bk}`;
+        const esp = pGsel(sk+'_e') || (d[bk] ? d[bk].e : d.ent) || '—';
+        const t   = pGsel(sk+'_t') || pTopics(esp)[0] || '—';
+        const s   = pGsel(sk+'_s') || pSubs(esp,t)[0] || '—';
+        const lbl = bk==='b1' ? 'Bloque 1' : bk==='b2' ? 'Bloque 2' : 'Entenada';
+        evs.push({ titulo:`${esp} · ${t}`, desc:agDesc(esp,{t,s},lbl),
+          f:d._f, ini:AG_HORARIOS[bk].ini, fin:AG_HORARIOS[bk].fin, cat:bk });
+      });
+    });
+  });
+  return evs;
+}
+
 function agDescargarICS(){
-  if(!agPlan) return;
-  const blob=new Blob([agToICS(agPlan.eventos)],{type:'text/calendar;charset=utf-8'});
+  const evs = agEventosActuales();
+  if(!evs.length) return;
+  const blob=new Blob([agToICS(evs)],{type:'text/calendar;charset=utf-8'});
   const url=URL.createObjectURL(blob), a=document.createElement('a');
   a.href=url; a.download='protocolo-residentado.ics';
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(()=>URL.revokeObjectURL(url),1000);
+  const est=document.getElementById('agExpEstado');
+  if(est){ est.innerHTML = `✓ Descargado con <b>${evs.length}</b> eventos, actualizado a lo que ves ahora.`; est.style.color='var(--muted-2)'; }
 }
 
 function agDescargarXLS(){
-  if(!agPlan) return;
   const rows=[];
   PWEEKS.forEach((w,wi)=>{
     w.days.forEach((d,di)=>{
-      const fecha = d._f ? `${agPad(d._f.getDate())}/${agPad(d._f.getMonth()+1)}/${d._f.getFullYear()}` : '';
+      if(!d._f) return;
+      const fecha = `${agPad(d._f.getDate())}/${agPad(d._f.getMonth()+1)}/${d._f.getFullYear()}`;
       if(d.sim){ rows.push({Semana:w.label,Fecha:fecha,'Día':d.n,Bloque:'Simulacro 9:00',Especialidad:'Mixto',Tema:'—',Subtema:'20 preguntas'}); return; }
       const lbl={b1:'Bloque 1 · 6:00',b2:'Bloque 2 · 8:30',be:'Entenada · 15:30'};
       ['b1','b2'].concat(d.ent?['be']:[]).forEach(bk=>{
         const sk=`w${wi}d${di}${bk}`;
-        rows.push({Semana:w.label,Fecha:fecha,'Día':d.n,Bloque:lbl[bk],
-          Especialidad:pGsel(sk+'_e')||'—',Tema:pGsel(sk+'_t')||'—',Subtema:pGsel(sk+'_s')||'—'});
+        const esp=pGsel(sk+'_e')||(d[bk]?d[bk].e:d.ent)||'—';
+        const t=pGsel(sk+'_t')||pTopics(esp)[0]||'—';
+        const s=pGsel(sk+'_s')||pSubs(esp,t)[0]||'—';
+        rows.push({Semana:w.label,Fecha:fecha,'Día':d.n,Bloque:lbl[bk],Especialidad:esp,Tema:t,Subtema:s});
       });
     });
   });
+  if(!rows.length) return;
   const ws=XLSX.utils.json_to_sheet(rows);
   ws['!cols']=[{wch:16},{wch:12},{wch:11},{wch:17},{wch:20},{wch:32},{wch:36}];
   const wb=XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb,ws,'Cronograma');
   XLSX.writeFile(wb,'Cronograma_Residentado.xlsx');
+  const est=document.getElementById('agExpEstado');
+  if(est){ est.innerHTML = `✓ Excel descargado con <b>${rows.length}</b> filas, actualizado a lo que ves ahora.`; est.style.color='var(--muted-2)'; }
+}
+
+// Habilita la exportación si hay un cronograma generado en pantalla.
+function agCheckExport(){
+  const hay = PWEEKS.some(w=>w.days.some(d=>d._f));
+  const ics=document.getElementById('agIcs'), xls=document.getElementById('agXls'), est=document.getElementById('agExpEstado');
+  if(!ics||!xls||!est) return;
+  ics.disabled = !hay; xls.disabled = !hay;
+  if(hay){
+    const n = agEventosActuales().length;
+    est.innerHTML = `<b>${n}</b> eventos listos para exportar.`;
+    est.style.color='var(--muted-2)';
+  } else {
+    est.innerHTML = 'Generá el cronograma arriba para habilitar la exportación.';
+    est.style.color='var(--muted-2)';
+  }
 }
 
 function agInit(){
@@ -1444,6 +1553,10 @@ function agInit(){
   document.getElementById('agGen').addEventListener('click', agGenerar);
   document.getElementById('agIcs').addEventListener('click', agDescargarICS);
   document.getElementById('agXls').addEventListener('click', agDescargarXLS);
+  document.getElementById('agInicio').addEventListener('change', agCheckListo);
+  document.getElementById('agExamen').addEventListener('change', agCheckListo);
+  agCheckListo();
+  agCheckExport();
 }
 
 // ============ INIT (local first, instant) ============
@@ -1477,6 +1590,8 @@ function rerenderEverything(){
     if(pst.ag.examen) document.getElementById('agExamen').value = pst.ag.examen;
     document.getElementById('agSab').value = pst.ag.sabados===false ? '0' : '1';
   }
+  agCheckListo();
+  agCheckExport();
 }
 
 async function cloudPullAndMerge(uid){
